@@ -1,0 +1,56 @@
+---
+title: "ML in pediatric growth"
+author: "Mauro Rodriguez-Marin Ph.D."
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+# Instalar y cargar paquetes necesarios
+if (!require("readxl")) install.packages("readxl", dependencies=TRUE)
+if (!require("caret")) install.packages("caret", dependencies=TRUE)
+if (!require("ggplot2")) install.packages("ggplot2", dependencies=TRUE)
+library(readxl)
+library(caret)
+library(ggplot2)
+
+# Cargar los datos desde Excel
+data <-Clinic_Data_Children_V2
+
+# Convertir la variable objetivo en factor
+data$`Short height` <- as.factor(data$`Short height`)
+
+# Dividir en conjunto de entrenamiento y prueba
+set.seed(123)  # Para reproducibilidad
+trainIndex <- createDataPartition(data$`Short height`, p = 0.8, list = FALSE)
+train_data <- data[trainIndex, ]
+test_data <- data[-trainIndex, ]
+
+# Ajustar el modelo de regresión logística
+model <- glm(`Short height` ~ Age + Stature, data = train_data, family = binomial)
+summary(model)
+
+plot(model)
+
+# Hacer predicciones en el conjunto de prueba
+predictions <- predict(model, newdata = test_data, type = "response")
+predicted_classes <- factor(ifelse(predictions > 0.5, 1, 0), levels = c(0, 1))
+
+# Evaluar con matriz de confusión
+actual_classes <- test_data$`Short height`
+conf_matrix <- confusionMatrix(predicted_classes, actual_classes)
+print(conf_matrix)
+
+# Visualizar la relación entre las variables
+ggplot(data, aes(x = Stature, y = as.numeric(`Short height`))) +
+  geom_point() +
+  geom_smooth(method = "glm", method.args = list(family = "binomial"), se = FALSE) +
+  labs(title = "Regresión Logística: Altura Baja", x = "Estatura", y = "Probabilidad de Baja Estatura")
+
+```
+
