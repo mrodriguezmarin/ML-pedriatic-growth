@@ -1,6 +1,6 @@
 ---
-title: "ML in pediatric growth"
-author: "Mauro Rodriguez-Marin Ph.D."
+title: "Pedriatic Grow Algoritm"
+author: "Mauro Rodriguez-Marin Ph.D. and Dr.Gustavo Orozco"
 date: "`r Sys.Date()`"
 output: html_document
 ---
@@ -11,46 +11,44 @@ knitr::opts_chunk$set(echo = TRUE)
 
 
 ```{r}
-# Instalar y cargar paquetes necesarios
-if (!require("readxl")) install.packages("readxl", dependencies=TRUE)
-if (!require("caret")) install.packages("caret", dependencies=TRUE)
-if (!require("ggplot2")) install.packages("ggplot2", dependencies=TRUE)
+# Load required libraries
 library(readxl)
 library(caret)
-library(ggplot2)
+library(pROC)
 
-# Cargar los datos desde Excel
-data <-Clinic_Data_Children_V2
+# Read the dataset from Excel
+data <-Clinic_Data_12
 
-# Convertir la variable objetivo en factor
-data$`Short height` <- as.factor(data$`Short height`)
+# Convert 'Height_Condition' to factor
+data$Height_Condition <- as.factor(data$Height_Condition)
 
-# Dividir en conjunto de entrenamiento y prueba
-set.seed(123)  # Para reproducibilidad
-trainIndex <- createDataPartition(data$`Short height`, p = 0.8, list = FALSE)
-train_data <- data[trainIndex, ]
-test_data <- data[-trainIndex, ]
+# Split the data into training and testing sets
+set.seed(42)
+train_index <- createDataPartition(data$Height_Condition, p = 0.7, list = FALSE)
+train_data <- data[train_index, ]
+test_data <- data[-train_index, ]
 
-# Ajustar el modelo de regresión logística
-model <- glm(`Short height` ~ Age + Stature, data = train_data, family = binomial)
-summary(model)
+# Logistic Regression Model
+model <- glm(Height_Condition ~ Age + Height, data = train_data, family = binomial)
 
-plot(model)
+# Predictions on the test set
+pred_prob <- predict(model, newdata = test_data, type = "response")
+pred_class <- ifelse(pred_prob > 0.5, 1, 0)
 
-# Hacer predicciones en el conjunto de prueba
-predictions <- predict(model, newdata = test_data, type = "response")
-predicted_classes <- factor(ifelse(predictions > 0.5, 1, 0), levels = c(0, 1))
+# Calculate accuracy and sensitivity
+conf_matrix <- confusionMatrix(as.factor(pred_class), test_data$Height_Condition)
+accuracy <- conf_matrix$overall['Accuracy']
+sensitivity <- conf_matrix$byClass['Sensitivity']
 
-# Evaluar con matriz de confusión
-actual_classes <- test_data$`Short height`
-conf_matrix <- confusionMatrix(predicted_classes, actual_classes)
-print(conf_matrix)
+# Print results
+print(paste("Accuracy:", round(accuracy, 4)))
+print(paste("Sensitivity:", round(sensitivity, 4)))
 
-# Visualizar la relación entre las variables
-ggplot(data, aes(x = Stature, y = as.numeric(`Short height`))) +
-  geom_point() +
-  geom_smooth(method = "glm", method.args = list(family = "binomial"), se = FALSE) +
-  labs(title = "Regresión Logística: Altura Baja", x = "Estatura", y = "Probabilidad de Baja Estatura")
-
+# ROC Curve
+roc_obj <- roc(test_data$Height_Condition, pred_prob)
+plot(roc_obj, col = "blue", main = "ROC Curve for Logistic Regression")
+auc_value <- auc(roc_obj)
+legend("bottomright", legend = paste("AUC =", round(auc_value, 2)), col = "blue", lwd = 2)
 ```
+
 
